@@ -71,7 +71,7 @@ long_data <- data.frame(id = rep(id, each = n_i), x1_l, x2_l, x3_l, time, Y)
 summary(lmer(Y ~ x1_l + x2_l + x3_l + time + (1+time|id), data = long_data)) # Cool!
 
 # Survival part ----
-theta.0 <- -3
+theta.0 <- exp(-3)
 theta.1 <- 1
 XsBs <- cbind(x1,x3) %*% c(-0.1, 0.05)
 
@@ -96,16 +96,18 @@ hazards <- as.matrix(hazards)
 # ID is then allocated the minimum of its possible times, tt.
 
 surv.times <- c()
-for(i in 40){
+for(i in id){
   temp <- hazards[hazards[,"id"] == i, ]
   lambda.t <- exp(theta.0 + theta.1 * temp[, 3]) * exp(temp[,2] + gamma[1] * temp[,4] + gamma[2] * temp[,5] * temp[,3] + 
                                                        gamma[3] * temp[,6] * temp[,3] ^ 2)
   lambda.tdt <- lambda.t * dt
   
-  surv.times[i]
-  
-  
+  candidate.times <- hazards[lambda.tdt > hazards[,7], 3]
+  candidate.times <- c(candidate.times, (n_i-1)) # Adding truncation time in for safety.
+  surv.times[i] <- min(candidate.times)
+  message(i, " done----\n")
 }
+hist(surv.times)
 
 # NB: This is how it's done in joineR code: A lot more Efficiently(!) ----
 bl.haz <- exp(theta.0 + theta.1 * gridt)
