@@ -3,9 +3,8 @@
 #' --------------------------
 #' Wrap of the 'single-run' simulation done in JM_Single.R
 #' Survival times are done using grid-step method.
-#' Interested in whether 
 #' --------------------------
-#' Functionisation will be done in another script.
+#' A simulation study will be done in another script
 #' ##########################
 
 # Prerequisites ------------------------------------------------------------
