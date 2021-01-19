@@ -30,14 +30,16 @@ Sigma <- matrix(
 )
 
 # Test run nsims = 5
-dat <- suppressMessages(replicate(5, sim.data(Sigma = Sigma), simplify = F))
+nsims <- 250
+dat <- suppressMessages(replicate(nsims, sim.data(Sigma = Sigma), simplify = F))
 
 # Do this in stages -
 # Step 1. Cast simulated data to class "jointdata" -----
 
 cast.joint <- function(x){
   long <- left_join(x$long.data, x$surv.data, "id") %>% 
-    filter(time <= surv.time)
+    filter(time <= surv.time) %>% 
+    select(names(x$long.data))
   
   jd <- jointdata(
     longitudinal = long,
@@ -55,7 +57,7 @@ dat.joint <- lapply(dat, cast.joint)
 
 # Step 2. Fitting the joint model -----------------------------------------
 joint.fit <- function(x){
-  joint.fit <- joint(x, model = "quad", max.it = 300,
+  joint.fit <- joint(x, model = "quad", max.it = 500,
         long.formula = Yl ~ x1l + x2l + x3l + time,
         surv.formula = Surv(surv.time, status) ~ x1 + x3,
         sepassoc = T)
@@ -122,5 +124,6 @@ tparams2 %>%
   theme(
     strip.background = element_blank(),
     strip.text = element_text(size = 12, colour = "black")
-  )
-  
+  ) + 
+  labs(caption = nrow(tparams[tparams$convergence,])/nrow(tparams) * 100)
+ggsave("~/Documents/PhD/SMMR_Simulations/QuadParameterEstimates.png")  
