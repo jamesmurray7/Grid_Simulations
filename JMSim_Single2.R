@@ -8,7 +8,6 @@
 #' ##########################
 
 # Prerequisites ------------------------------------------------------------
-dev.off()
 rm(list = ls())
 library(tidyverse)
 theme_set(theme_light())
