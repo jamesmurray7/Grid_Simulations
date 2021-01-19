@@ -21,9 +21,9 @@ library(survival)
 # Under quadratic RE structure
 
 sim.data <- function(num_subj = 250, num_times = 6,
-                     sigma.epsilon = 1.5, gamma = c(1, 0.5, 0.35),
+                     sigma.epsilon = 1.5, gamma = c(1, 0.5, 0.1),
                      Sigma, beta.longit = c(40, -10, 5, 15, 0.1),
-                     beta.surv = c(1,1), censoring = T, cens.rate = 0.01,
+                     beta.surv = c(-0.1,0.01), censoring = T, cens.rate = 0.01,
                      dt = 0.001, print.data = F){
   
   # Checks on provided covariance matrix ----
@@ -59,9 +59,10 @@ sim.data <- function(num_subj = 250, num_times = 6,
   long.data <- data.frame(id = rep(id, each = num_times), time, x1l, x2l, x3l, Yl)
   
   # Survival Part ----
+  theta.0 <- log(0.01) # Gompertz baseline hazard: Scale parameter = exp(theta.0)
+  theta.1 <- 0.5 # 0.1 # Gompertz baseline hazard: Shape parameter
+  # Fixed effects
   Bs <- matrix(beta.surv, nrow = 1)
-  theta.0 <- log(0.1)
-  theta.1 <- 0.1
   Xs <- model.matrix(~ x1 + x3 - 1)
   XsBs <- Xs %*% t(Bs)
   # Define gridsteps
@@ -110,9 +111,9 @@ sim.data <- function(num_subj = 250, num_times = 6,
 # Running function a few times --------------------------------------------
 
 # One run: 
-sigma.0 <- 3   # Intercept RE
-sigma.1 <- 2   # Slope RE
-sigma.2 <- 1   # Quadratic RE 
+sigma.0 <- 1   # Intercept RE
+sigma.1 <- 0.5   # Slope RE
+sigma.2 <- 0.15   # Quadratic RE 
 # Covariance matrix --
 Sigma <- matrix(
   c(sigma.0 ^ 2,       sigma.0 * sigma.1, sigma.0 * sigma.2,
@@ -121,10 +122,8 @@ Sigma <- matrix(
 )
 
 dat <- sim.data(Sigma = Sigma, print.data = T)
-lfit <- lmer(Yl ~ x1l + x2l + x3l + time + (1 + time|id), data = dat$long.data)
-summary(coxph(Surv(surv.time, status) ~ x1 + x3, data = dat$surv.data))
-
-
+dat$surv.data %>% group_by(status) %>% summarise(m = mean(surv.time))
+hist(dat$surv.data %>% filter(status == 1) %>% .$surv.time)
 # Separate investigation --------------------------------------------------
 
 longit.params <- matrix(NA, nrow = 20, ncol = 9)
@@ -151,8 +150,12 @@ longit.params
 
 # Single-run of jointdata() and joint()
 library(joineR)
+
+long2 <- left_join(dat$long.data, dat$surv.data, by = "id") %>% 
+  filter(time <= surv.time)
+
 jd <- jointdata(
-  longitudinal = dat$long.data,
+  longitudinal = long2,
   survival = dat$surv.data,
   baseline = dat$surv.data[,c("id", "x1", "x3")],
   id.col = "id", time.col = "time"
