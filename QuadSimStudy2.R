@@ -13,6 +13,7 @@ library(tidyverse)
 theme_set(theme_light())
 library(lme4)
 library(survival)
+library(joineR)
 
 source("~/Documents/PhD/SMMR_Simulations/jointsim.R")
 
@@ -26,30 +27,51 @@ SigmaGen <- function(sigma.0, sigma.1, sigma.2){
   return(Sigma)
 }
 
-# Test run nsims = 5
-nsims <- 5
-dat <- suppressMessages(replicate(nsims, sim.data(Sigma = Sigma), simplify = F))
+# Generate parameter permutations on N ----
+simstudy <- crossing(
+  num_subj = c(250, 500),
+  num_times = c(5, 10, 15),
+) %>% 
+  mutate(id = glue::glue("m = {num_subj}, n = {num_times}")) %>% 
+  group_by(id) %>% 
+  nest(data = c(num_subj, num_times)) %>%  ungroup
+
+Sigma <- SigmaGen(1, 0.5, 0.15)
+
+# Simulate data for each permutation of num_subj and num_times
+
+sim200 <- function(x){
+  replicate(200, sim.data(num_subj = x$num_subj,
+                          num_times = x$num_times,
+                          Sigma = Sigma), simplify = F)
+}
+
+simstudy.data <- lapply(simstudy$data, sim200)
 
 # Do this in stages -
 # Step 1. Cast simulated data to class "jointdata" -----
 
-dat.joint <- lapply(dat, cast.joint)
+dat.joint <- lapply(simstudy.data %>% flatten, cast.joint)
 
 
 # Step 2. Fitting the joint model -----------------------------------------
-
-fits <- lapply(dat.joint, joint.fit)
+library(parallel)
+fits <- mclapply(dat.joint, joint.fit,
+                 mc.preschedule = T, mc.cores = 3)
 
 
 # Step 3. Extracting Parameter Estimates ----------------------------------
 
-params <- lapply(fits, extract.coefs)
+params <- lapply(fits, extract.params)
 params <- bind_rows(params)
+
+id <- simstudy %>% pull(id) %>% as.character() %>% rep(., each =200)
+params$id <- id
 
 # Step 4. Plot! -----------------------------------------------------------
 # Transform parameter set into more workable (long) format
 tparams <- params %>% select(-time) %>% 
-  gather(-convergence, key = "Parameter", value = "Estimate") 
+  gather(-id, -convergence, key = "Parameter", value = "Estimate") 
 
 # Get true values
 true.values <- tparams %>% distinct(Parameter)
@@ -74,8 +96,8 @@ true.values <- true.values %>% select(-Parameter)
 
 tparams2 %>% 
   filter(convergence) %>% 
-  ggplot(aes(x = Estimate)) + 
-  geom_density(fill = "grey20", alpha = .2) + 
+  ggplot(aes(x = Estimate, fill = id)) + 
+  geom_density(alpha = .2) + 
   geom_vline(data = true.values, aes(xintercept = xint), lty = 2, colour = "magenta") + 
   facet_wrap(~Param, scales = "free", labeller = label_parsed,
              nrow = 5, ncol = 3) + 
@@ -84,4 +106,4 @@ tparams2 %>%
     strip.text = element_text(size = 12, colour = "black")
   ) + 
   labs(caption = nrow(tparams[tparams$convergence,])/nrow(tparams) * 100)
-ggsave("~/Documents/PhD/SMMR_Simulations/QuadParameterEstimates.png")  
+ggsave("~/Documents/PhD/SMMR_Simulations/SampleSize.png")
