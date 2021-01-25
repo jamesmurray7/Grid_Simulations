@@ -53,7 +53,8 @@ sim.data <- function(num_subj = 250, num_times = 6,
   x3l <- rep(x3, each = num_times)
   Xl <- model.matrix(~x1l + x2l + x3l)
   time <- rep(0:tau, num_subj)
-  Yl <- Xl %*% t(Bl) + rep(U0, each = num_times) + rep(U1, each = num_times) * time + rnorm(N, 0, sigma.epsilon)
+  Yl <- Xl %*% t(Bl) + rep(U0, each = num_times) + rep(U1, each = num_times) * time + 
+    rep(U2, each = num_times) * time ^ 2 + rnorm(N, 0, sigma.epsilon)
   long.data <- data.frame(id = rep(id, each = num_times), time, x1l, x2l, x3l, Yl)
   
   # Survival Part ----
@@ -119,19 +120,32 @@ Sigma <- matrix(
     sigma.2 * sigma.0, sigma.2 * sigma.1, sigma.2 ^ 2), nrow = 3, byrow = T
 )
 
-dat <- sim.data(Sigma = Sigma, print.data = T)
+Rho <- matrix(
+  c(1, .2, .5,
+    .2, 1, .4,
+    .5, .4, 1), nrow = 3, byrow = T
+)
+
+
+dat <- sim.data(Sigma = Sigma * Rho, print.data = T)
 dat$surv.data %>% group_by(status) %>% summarise(m = mean(surv.time))
 hist(dat$surv.data %>% filter(status == 1) %>% .$surv.time)
+
 # Separate investigation --------------------------------------------------
 
-longit.params <- matrix(NA, nrow = 20, ncol = 9)
+lfit <- lmer(Yl ~ x1l + x2l + x3l + time + 
+             (1 + time + I(time^2)|id), data = dat$long.data,
+             control = lmerControl(optimizer = "Nelder_Mead"))
+lfit
+longit.params <- matrix(NA, nrow = 20, ncol = 10)
 surv.params <- matrix(NA, nrow = 20, ncol = 2)
 
 for(i in 1:20){
-  this.dat <- sim.data(Sigma = Sigma) # Simulate data
+  this.dat <- sim.data(Sigma = Sigma * Rho) # Simulate data
   
   # Longitudinal Stuff
-  lfit <- lmer(Yl ~ x1l + x2l + x3l + time + (1 + time|id), data = this.dat$long.data)
+  lfit <- lmer(Yl ~ x1l + x2l + x3l + time + (1 + time + I(time^2)|id), 
+               data = this.dat$long.data)
   Bl <- lfit@beta
   sigma.epsilon <- sigma(lfit)
   sigma.U.long <- as.numeric(attr(VarCorr(lfit)$id, "stddev"))
