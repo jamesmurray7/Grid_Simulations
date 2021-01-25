@@ -1,7 +1,33 @@
 #' #############
 #' jointsim.R    Author: Jame Murray
 #' Functions first created in QuadSimStudy.R
+#' Functions created here represent steps in fitting and returning a joint model
+#' and are designed to be used within lapply on a list (careful of hierarchies here!)
+#' sim.data and cast.joint may be altered to be one function only in the future.
+#' ---
+#' Update 25/01/20: Added SigmaGen
+#'                  Changed longitudinal specification
 #' #############
+
+# Generate Sigma ----------------------------------------------------------
+
+SigmaGen <- function(sigma.0, sigma.1, sigma.2,
+                     rho12 = 0.2, rho13 = 0.5, rho23 = 0.4){
+  Sigma <- matrix(
+    c(sigma.0 ^ 2,       sigma.0 * sigma.1, sigma.0 * sigma.2,
+      sigma.1 * sigma.0, sigma.1 ^ 2,       sigma.1 * sigma.2,
+      sigma.2 * sigma.0, sigma.2 * sigma.1, sigma.2 ^ 2), nrow = 3, byrow = T
+  )
+  
+  rho <-  matrix(
+    c(1,     rho12, rho13,
+      rho12, 1,     rho23,
+      rho13, rho23, 1), nrow = 3, byrow = T
+  )
+  return(Sigma * rho)
+}
+
+# Simulate longitudinal data and survival times ---------------------------
 
 sim.data <- function(num_subj = 250, num_times = 6,
                      sigma.epsilon = 1.5, gamma = c(1, 0.5, 0.1),
@@ -39,7 +65,8 @@ sim.data <- function(num_subj = 250, num_times = 6,
   x3l <- rep(x3, each = num_times)
   Xl <- model.matrix(~x1l + x2l + x3l)
   time <- rep(0:tau, num_subj)
-  Yl <- Xl %*% t(Bl) + rep(U0, each = num_times) + rep(U1, each = num_times) * time + rnorm(N, 0, sigma.epsilon)
+  Yl <- Xl %*% t(Bl) + rep(U0, each = num_times) + rep(U1, each = num_times) * time + 
+    rep(U2, each = num_times) * time^2 + rnorm(N, 0, sigma.epsilon)
   long.data <- data.frame(id = rep(id, each = num_times), time, x1l, x2l, x3l, Yl)
   
   # Survival Part ----
