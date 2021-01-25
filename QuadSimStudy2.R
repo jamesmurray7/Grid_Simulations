@@ -17,32 +17,21 @@ library(joineR)
 
 source("~/Documents/PhD/SMMR_Simulations/jointsim.R")
 
-# Define function to generate Covariance matrix -----
-SigmaGen <- function(sigma.0, sigma.1, sigma.2){
-  Sigma <- matrix(
-    c(sigma.0 ^ 2,       sigma.0 * sigma.1, sigma.0 * sigma.2,
-      sigma.1 * sigma.0, sigma.1 ^ 2,       sigma.1 * sigma.2,
-      sigma.2 * sigma.0, sigma.2 * sigma.1, sigma.2 ^ 2), nrow = 3, byrow = T
-  )
-  return(Sigma)
-}
-
 # Generate parameter permutations on N ----
 simstudy <- crossing(
-  num_subj = c(250, 500),
-  num_times = c(5, 10, 15),
+  m = c(250, 500),
+  n = c(5, 10, 15),
 ) %>% 
-  mutate(id = glue::glue("m = {num_subj}, n = {num_times}")) %>% 
+  mutate(id = glue::glue("m = {m}, n = {n}")) %>% 
   group_by(id) %>% 
-  nest(data = c(num_subj, num_times)) %>%  ungroup
+  nest(data = c(m, n)) %>%  ungroup
 
 Sigma <- SigmaGen(1, 0.5, 0.15)
 
 # Simulate data for each permutation of num_subj and num_times
 
 sim200 <- function(x){
-  replicate(200, sim.data(num_subj = x$num_subj,
-                          num_times = x$num_times,
+  replicate(200, sim.data(num_subj = x$m, num_times = x$n,
                           Sigma = Sigma), simplify = F)
 }
 
@@ -105,5 +94,13 @@ tparams2 %>%
     strip.background = element_blank(),
     strip.text = element_text(size = 12, colour = "black")
   ) + 
+  scale_fill_manual(values = c("grey20", "cyan", "orange", "blue",
+                               "red", "darkgreen")) + 
   labs(caption = nrow(tparams[tparams$convergence,])/nrow(tparams) * 100)
+
 ggsave("~/Documents/PhD/SMMR_Simulations/SampleSize.png")
+
+params %>% 
+  filter(convergence) %>% 
+  group_by(id) %>% 
+  summarise(across(`X.Intercept.`:gamma_2, median))
