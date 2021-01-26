@@ -144,4 +144,14 @@ mj <- mjoint(
   timeVar = "time", verbose = T
 )  
 
+# Working out coefs
+mj %>% names
+U <- sqrt(diag(mj$coefficients$D))
+sigma.e <- sqrt(mj$coefficients$sigma2)
+betal <- mj$coefficients$beta
+betas <- mj$coefficients$gamma
+gamma <- betas[3]
 
+params <- data.frame(t(betal), t(betas[-3]), t(sigma.e), t(gamma), 
+                     row.names = NULL)
+params
