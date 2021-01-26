@@ -145,6 +145,23 @@ joint.fit <- function(x){
   return(joint.fit)
 }
 
+
+# Fit a joint model using joineRML ----------------------------------------
+
+mjoint.fit <- function(x, verbose = F){
+  dat <- left_join(x$long.data, x$surv.data, by = "id") %>% 
+    filter(time <= surv.time)
+  joint.fit <- mjoint(
+    formLongFixed = list("Y" = Yl ~ time + x1l + x2l + x3l),
+    formLongRandom = list("Y" = ~ 1 + time + I(time^2) | id),
+    formSurv = Surv(surv.time, status) ~ x1 + x3,
+    data = dat, verbose = verbose,
+    timeVar = "time"
+  )
+  return(joint.fit)
+}
+  
+  
 # Extract parameter estimates from joint models ---------------------------
 extract.params <- function(fit){
   convergence <- fit$convergence
@@ -161,6 +178,20 @@ extract.params <- function(fit){
   param.ests <- data.frame(beta.ests, sigma.e, t(sigma.u), t(gamma), convergence)
   # And return
   return(param.ests)
+}
+
+# Extract parameters from joineRML fit ------------------------------------
+
+extract.ml.params <- function(fit){
+  U <- sqrt(diag(fit$coefficients$D))
+  sigma.e <- sqrt(fit$coefficients$sigma2)
+  betal <- fit$coefficients$beta
+  betas <- fit$coefficients$gamma
+  gamma <- betas[3]
+  
+  params <- data.frame(t(betal), t(betas[-3]), t(sigma.e), t(gamma), 
+                       row.names = NULL)
+  return(params)
 }
 
 # No function for plotting parameter estimates right now.
