@@ -15,7 +15,7 @@ library(lme4)
 library(survival)
 library(joineR)
 
-source("~/Documents/PhD/SMMR_Simulations/jointsim.R")
+source("~/Documents/PhD/GridSimulations/jointsim.R")
 
 # Generate parameter permutations on N ----
 simstudy <- crossing(
@@ -98,7 +98,7 @@ tparams2 %>%
                                "red", "darkgreen")) + 
   labs(caption = nrow(tparams[tparams$convergence,])/nrow(tparams) * 100)
 
-ggsave("~/Documents/PhD/SMMR_Simulations/SampleSize.png")
+ggsave("~/Documents/PhD/GridSimulations/SampleSize.png")
 
 params %>% 
   filter(convergence) %>% 

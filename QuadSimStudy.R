@@ -16,7 +16,7 @@ theme_set(theme_light())
 library(lme4)
 library(survival)
 
-source("~/Documents/PhD/SMMR_Simulations/simdata.R")
+source("~/Documents/PhD/GridSimulations/simdata.R")
 
 # Set out covariance matrix -----
 sigma.0 <- 1     # Intercept RE
@@ -126,4 +126,4 @@ tparams2 %>%
     strip.text = element_text(size = 12, colour = "black")
   ) + 
   labs(caption = nrow(tparams[tparams$convergence,])/nrow(tparams) * 100)
-ggsave("~/Documents/PhD/SMMR_Simulations/QuadParameterEstimates.png")  
+ggsave("~/Documents/PhD/GridSimulations/QuadParameterEstimates.png")  
